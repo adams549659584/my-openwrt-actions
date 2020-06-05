@@ -27,7 +27,7 @@ env:
   CONFIG_FILE: src/config/x86_64_0605.config
   DIY_P1_SH: src/sh/diy-part1.sh
   DIY_P2_SH: src/sh/diy-part2.sh
-  SSH_ACTIONS: false
+  SSH_ACTIONS: true
   UPLOAD_BIN_DIR: false
   UPLOAD_FIRMWARE: true
   UPLOAD_COWTRANSFER: false
@@ -85,14 +85,21 @@ jobs:
     - name: SSH connection to Actions
       uses: P3TERX/debugger-action@master
       if: env.SSH_ACTIONS == 'true' || contains(github.event.action, 'ssh')
+    
+    - name: Download package
+      id: package
+      run: |
+        cd openwrt
+        make defconfig
+        make download -j8
+        find dl -size -1024c -exec ls -l {} \;
+        find dl -size -1024c -exec rm -f {} \;
 
     - name: Multi-thread Compile the firmware
       id: multi-thread-compile
       run: |
         cd openwrt
         echo -e "$(($(nproc) + 1)) thread compile"
-        make defconfig
-        make -j8 download
         make -j$(($(nproc) + 1)) V=s
         echo "::set-output name=status::success"
 
@@ -102,8 +109,6 @@ jobs:
       run: |
         cd openwrt
         echo -e "single thread compile"
-        make menuconfig
-        make -j8 download V=s
         make -j1 V=s
         echo "::set-output name=status::success"
 
